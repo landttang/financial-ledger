@@ -16,9 +16,11 @@ const auth = new google.auth.GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-// 기본 접속 테스트
+const path = require('path'); // 파일 경로를 다루기 위해 추가 (맨 위 require 모음 쪽에 굳이 안 넣고 여기에 둬도 작동합니다)
+
+// 기본 주소 접속 시 index.html 화면 보여주기
 app.get('/', (req, res) => {
-    res.send('가계부 서버가 정상적으로 실행 중입니다!');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // ★ 화면에서 입력받은 데이터를 구글 시트로 보내는 핵심 기능 ★

@@ -63,7 +63,7 @@
 
             try {
                 // 서버로 슉! 보내기
-                const response = await fetch('http://localhost:3000/api/ledger', {
+                const response = await fetch('https://financial-ledger-x6nh.onrender.com/api/ledger', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
