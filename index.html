@@ -2,55 +2,96 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <!-- 모바일 화면에 딱 맞게 확대/축소를 방지하고 크기를 맞춰주는 마법의 코드 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>나만의 가계부</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
-        form { display: flex; flex-direction: column; gap: 8px; }
-        label { font-weight: bold; margin-top: 10px; font-size: 14px; color: #333; }
-        input, select, button { padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
-        button { background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-top: 20px; font-weight: bold; }
+        /* 모바일에 맞게 여백과 폰트 크기를 시원하게 키웠습니다 */
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 15px; background-color: #f4f7f6; margin: 0; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
+        h2 { text-align: center; color: #333; margin-top: 0; }
+        form { display: flex; flex-direction: column; gap: 12px; }
+        label { font-weight: bold; font-size: 14px; color: #555; margin-top: 5px; }
+        
+        /* 터치하기 편하도록 입력칸을 크고 둥글게 만들었습니다 */
+        input, select, button { padding: 14px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; width: 100%; }
+        input:focus, select:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 5px rgba(76, 175, 80, 0.3); }
+        
+        button { background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-top: 20px; font-weight: bold; font-size: 18px; padding: 16px; }
         button:hover { background-color: #45a049; }
+
+        /* 선택된 유형별 색상 포인트 */
+        .color-expense { color: #e53935; font-weight: bold; }
+        .color-income { color: #1e88e5; font-weight: bold; }
+        .color-transfer { color: #43a047; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>💰 가계부 입력하기</h2>
-    <form id="ledgerForm">
-        <label>날짜</label>
-        <input type="date" id="date" required>
-        
-        <label>유형</label>
-        <select id="type">
-            <option value="지출">지출</option>
-            <option value="수입">수입</option>
-            <option value="이체">이체</option>
-        </select>
-        
-        <label>금액</label>
-        <input type="number" id="amount" placeholder="예: 10000" required>
-        
-        <label>카테고리</label>
-        <input type="text" id="category" placeholder="예: 식비" required>
-        
-        <label>서브카테고리</label>
-        <input type="text" id="subCategory" placeholder="예: 카페">
-        
-        <label>설명</label>
-        <input type="text" id="description" placeholder="예: 거래처 미팅 커피">
-        
-        <label>신용카드</label>
-        <input type="text" id="creditCard" placeholder="예: 현대카드">
-        
-        <!-- 년월 칸은 서버가 자동으로 계산하므로 화면에서는 삭제했습니다! -->
-        
-        <button type="submit">저장하기</button>
-    </form>
+    <div class="container">
+        <h2>💰 가계부 입력하기</h2>
+        <form id="ledgerForm">
+            <label>날짜</label>
+            <input type="date" id="date" required>
+            
+            <label>유형</label>
+            <select id="type" onchange="updateTypeColor()">
+                <option value="지출" class="color-expense">지출</option>
+                <option value="수입" class="color-income">수입</option>
+                <option value="이체" class="color-transfer">이체</option>
+            </select>
+            
+            <label>금액</label>
+            <input type="number" id="amount" placeholder="예: 10000" required>
+            
+            <!-- 입력에서 드롭다운(선택) 방식으로 변경되었습니다 -->
+            <label>카테고리</label>
+            <select id="category" required>
+                <option value="">선택해주세요</option>
+                <option value="식비">식비</option>
+                <option value="교통/차량">교통/차량</option>
+                <option value="사무실 운영">사무실 운영 (임대료, 관리비 등)</option>
+                <option value="광고/홍보">광고/홍보 (매물 등록비 등)</option>
+                <option value="기타">기타</option>
+            </select>
+            
+            <label>서브카테고리</label>
+            <select id="subCategory">
+                <option value="">선택해주세요</option>
+                <option value="식사/회식">식사/회식</option>
+                <option value="커피/음료">커피/음료</option>
+                <option value="주유/주차">주유/주차</option>
+                <option value="소모품/비품">소모품/비품</option>
+                <option value="플랫폼 이용료">플랫폼 이용료</option>
+            </select>
+            
+            <label>설명</label>
+            <input type="text" id="description" placeholder="예: 거래처 미팅 커피">
+            
+            <label>신용카드 / 계좌</label>
+            <input type="text" id="creditCard" placeholder="예: 현대카드 / 국민은행">
+            
+            <button type="submit">저장하기</button>
+        </form>
+    </div>
 
-    <!-- 여기서부터 서버와 통신하는 마법의 코드입니다 -->
     <script>
-        document.getElementById('ledgerForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); // 새로고침 방지
+        // 1. 접속 시 날짜를 '오늘 날짜'로 자동 세팅해 주는 편의 기능
+        document.getElementById('date').value = new Date().toISOString().substring(0, 10);
 
-            // 사용자가 입력한 7가지 데이터 수집
+        // 2. 유형(수입/지출/이체) 선택 시 글자 색상 자동 변경
+        function updateTypeColor() {
+            const typeSelect = document.getElementById('type');
+            typeSelect.className = ''; // 기존 색상 지우기
+            if(typeSelect.value === '지출') typeSelect.classList.add('color-expense');
+            if(typeSelect.value === '수입') typeSelect.classList.add('color-income');
+            if(typeSelect.value === '이체') typeSelect.classList.add('color-transfer');
+        }
+        updateTypeColor(); // 처음 화면 뜰 때 바로 적용
+
+        // 3. 서버로 데이터 전송
+        document.getElementById('ledgerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
             const data = {
                 date: document.getElementById('date').value,
                 type: document.getElementById('type').value,
@@ -62,7 +103,7 @@
             };
 
             try {
-                // 서버로 슉! 보내기
+                // 대표님의 렌더 서버 주소입니다.
                 const response = await fetch('https://financial-ledger-x6nh.onrender.com/api/ledger', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -71,13 +112,15 @@
 
                 if (response.ok) {
                     alert('구글 시트에 성공적으로 저장되었습니다! 🎉');
-                    document.getElementById('ledgerForm').reset(); // 입력칸 깔끔하게 비우기
+                    // 연속 입력을 위해 날짜는 남겨두고 금액, 설명 등만 비워줍니다.
+                    document.getElementById('amount').value = '';
+                    document.getElementById('description').value = '';
                 } else {
                     alert('저장에 실패했습니다.');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('서버와 연결할 수 없습니다. 터미널에서 서버가 켜져 있는지 확인해 주세요.');
+                alert('서버와 연결할 수 없습니다.');
             }
         });
     </script>
