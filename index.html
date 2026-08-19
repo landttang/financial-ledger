@@ -41,7 +41,6 @@
         .history-desc { font-size: 13px; color: #666; }
         .history-amount { font-size: 15px; font-weight: bold; }
         
-        /* 수정/삭제 버튼 스타일 */
         .history-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
         .action-btn { padding: 6px 12px; font-size: 13px; border-radius: 5px; cursor: pointer; width: auto; font-weight: bold; }
         .edit-btn { background: #f0f0f0; border: 1px solid #ddd; color: #333; }
@@ -137,7 +136,7 @@
 
     <script>
         let globalData = [];
-        let editingRowNum = null; // 수정 중인 행 번호 기록
+        let editingRowNum = null;
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -227,39 +226,35 @@
 
         updateTypeColor(); updateCategory();
 
-        // [수정 기능] 내역 탭에서 '수정' 버튼을 눌렀을 때
         function editItem(rowNum) {
             const itemInfo = globalData.find(d => d.rowNum === rowNum);
             if(!itemInfo) return;
 
             const row = itemInfo.rowData;
             
-            // 입력 폼으로 데이터 넘기기
             document.getElementById('date').value = row[0];
             document.getElementById('type').value = row[1];
-            updateTypeColor(); updateCategory(); // 카테고리 갱신
+            updateTypeColor(); updateCategory(); 
             document.getElementById('category').value = row[3];
-            updateSubCategory(); // 서브카테고리 갱신
+            updateSubCategory(); 
             document.getElementById('subCategory').value = row[4];
             
             const rawAmount = row[2] ? String(row[2]).replace(/,/g, '') : '';
             document.getElementById('amount').value = rawAmount;
-            formatComma(document.getElementById('amount')); // 콤마 씌우기
+            formatComma(document.getElementById('amount')); 
             
             document.getElementById('description').value = row[5] || '';
             document.getElementById('creditCard').value = row[6] || '현금';
 
-            // 수정 모드 세팅
             editingRowNum = rowNum;
             document.getElementById('editBadge').style.display = 'block';
             document.getElementById('saveBtn').innerText = '수정 완료하기';
             document.getElementById('cancelEditBtn').style.display = 'block';
             
-            switchTab('input'); // 입력 탭으로 이동
-            window.scrollTo(0, 0); // 화면 맨 위로
+            switchTab('input'); 
+            window.scrollTo(0, 0); 
         }
 
-        // [수정 취소 기능]
         function cancelEdit() {
             editingRowNum = null;
             document.getElementById('editBadge').style.display = 'none';
@@ -270,7 +265,6 @@
             updateTypeColor(); updateCategory();
         }
 
-        // [삭제 기능] 내역 탭에서 '삭제' 버튼을 눌렀을 때
         async function deleteItem(rowNum) {
             if(!confirm("이 내역을 정말 삭제하시겠습니까?")) return;
 
@@ -278,8 +272,8 @@
                 const response = await fetch('/api/ledger/' + rowNum, { method: 'DELETE' });
                 if (response.ok) {
                     alert('삭제되었습니다.');
-                    globalData = []; // 데이터 갱신을 위해 초기화
-                    fetchAndRenderData('history'); // 화면 다시 그리기
+                    globalData = []; 
+                    fetchAndRenderData('history'); 
                 } else {
                     alert('삭제 실패');
                 }
@@ -288,7 +282,6 @@
             }
         }
 
-        // 데이터 저장하기 (새로 저장 OR 수정)
         document.getElementById('ledgerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('saveBtn');
@@ -305,7 +298,6 @@
             };
 
             try {
-                // editingRowNum이 있으면 PUT(수정), 없으면 POST(새로 저장)
                 const url = editingRowNum ? `/api/ledger/${editingRowNum}` : '/api/ledger';
                 const method = editingRowNum ? 'PUT' : 'POST';
 
@@ -317,7 +309,7 @@
 
                 if (response.ok) {
                     alert(editingRowNum ? '수정되었습니다! 🎉' : '저장되었습니다! 🎉');
-                    cancelEdit(); // 폼 초기화 및 수정 모드 해제
+                    cancelEdit(); 
                     globalData = []; 
                     switchTab('history');
                 } else {
@@ -331,7 +323,6 @@
             }
         });
 
-        // 서버에서 데이터 부르기 (공통)
         async function fetchAndRenderData(targetTab) {
             if(globalData.length === 0) {
                 try {
@@ -346,7 +337,7 @@
             if(targetTab === 'stats') renderStats();
         }
 
-        // 내역 화면 그리기
+        // ★ 이번 달 요약만 표시하도록 수정된 부분 ★
         function renderHistory() {
             const historyList = document.getElementById('historyList');
             const summaryBox = document.getElementById('historySummary');
@@ -359,7 +350,13 @@
 
             summaryBox.style.display = 'block';
             historyList.innerHTML = ''; 
-            let totalIncome = 0; let totalExpense = 0;
+            
+            let currentMonthIncome = 0; 
+            let currentMonthExpense = 0;
+
+            // 현재 시간을 기준으로 '이번 달(예: 2026-08)' 문자열 생성
+            const currentMonthStr = new Date().toISOString().substring(0, 7);
+            const currentMonthDisplay = new Date().getMonth() + 1; // 화면에 보여줄 숫자 (예: 8월)
 
             globalData.forEach(item => {
                 const rowNum = item.rowNum;
@@ -373,8 +370,11 @@
                 const desc = row[5] || '';
                 const payMethod = row[6] || '';
 
-                if(type === '수입') totalIncome += rawAmount;
-                if(type === '지출') totalExpense += rawAmount;
+                // 이번 달 데이터만 골라서 요약 금액에 합산
+                if (date.startsWith(currentMonthStr)) {
+                    if(type === '수입') currentMonthIncome += rawAmount;
+                    if(type === '지출') currentMonthExpense += rawAmount;
+                }
 
                 let amountColor = '#333';
                 if(type === '지출') amountColor = '#e53935';
@@ -401,17 +401,17 @@
                 historyList.innerHTML += itemHtml;
             });
 
-            const netProfit = totalIncome - totalExpense;
+            // 요약 박스 업데이트 (이번 달 기준)
+            const netProfit = currentMonthIncome - currentMonthExpense;
             summaryBox.innerHTML = `
-                <div style="font-size:13px; color:#888; margin-bottom:5px;">전체 누적 요약</div>
-                <div class="stat-row"><span class="color-income">총 수입</span> <span>${totalIncome.toLocaleString()}원</span></div>
-                <div class="stat-row"><span class="color-expense">총 지출</span> <span>${totalExpense.toLocaleString()}원</span></div>
+                <div style="font-size:13px; color:#888; margin-bottom:5px;">이번 달 (${currentMonthDisplay}월) 요약</div>
+                <div class="stat-row"><span class="color-income">이번 달 수입</span> <span>${currentMonthIncome.toLocaleString()}원</span></div>
+                <div class="stat-row"><span class="color-expense">이번 달 지출</span> <span>${currentMonthExpense.toLocaleString()}원</span></div>
                 <div class="stat-row stat-total"><span>영업 순수익</span> <span style="color:${netProfit >= 0 ? '#1e88e5' : '#e53935'}">${netProfit.toLocaleString()}원</span></div>
             `;
         }
 
         function renderStats() {
-            // (이전 통계 기능과 동일하게 유지 - 스크롤 길이 상 생략되지 않고 전부 포함되어 있습니다)
             const container = document.getElementById('statsContainer');
             const start = document.getElementById('startDate').value;
             const end = document.getElementById('endDate').value;
