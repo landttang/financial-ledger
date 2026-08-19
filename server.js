@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { google } = require('googleapis');
 require('dotenv').config();
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -16,40 +17,49 @@ const auth = new google.auth.GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-const path = require('path'); // 파일 경로를 다루기 위해 추가 (맨 위 require 모음 쪽에 굳이 안 넣고 여기에 둬도 작동합니다)
-
 // 기본 주소 접속 시 index.html 화면 보여주기
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// ★ 화면에서 입력받은 데이터를 구글 시트로 보내는 핵심 기능 ★
+// ★ [추가됨] 구글 시트에서 데이터를 읽어오는 기능 ★
+app.get('/api/ledger', async (req, res) => {
+    try {
+        const sheets = google.sheets({ version: 'v4', auth });
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.SPREADSHEET_ID,
+            range: '시트1!A:H', // 시트의 A열부터 H열까지 가져옵니다.
+        });
+
+        const rows = response.data.values;
+        if (!rows || rows.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        // 첫 번째 줄(제목)을 제외하고, 최신 날짜가 맨 위로 오도록 역순(reverse) 정렬하여 보냅니다.
+        const data = rows.slice(1).reverse();
+        res.status(200).json(data);
+    } catch (error) {
+        console.error('데이터 불러오기 중 오류 발생:', error);
+        res.status(500).json({ message: '데이터를 불러오는데 실패했습니다.' });
+    }
+});
+
+// 화면에서 입력받은 데이터를 구글 시트로 보내는 기능
 app.post('/api/ledger', async (req, res) => {
     try {
-        // 1. 화면(HTML)에서 사용자가 입력한 7가지 데이터 받아오기
         const { date, type, amount, category, subCategory, description, creditCard } = req.body;
-
-        // 2. '년월' 자동 생성 (예: '2026-08-18' -> '2026-08')
         const yearMonth = date.substring(0, 7); 
 
         const sheets = google.sheets({ version: 'v4', auth });
 
-        // 3. 구글 시트에 들어갈 A열부터 H열까지의 데이터 배열 만들기
         const newRow = [
-            date,           // A: 날짜
-            type,           // B: 유형
-            amount,         // C: 금액
-            category,       // D: 카테고리
-            subCategory,    // E: 서브카테고리
-            description,    // F: 설명
-            creditCard,     // G: 신용카드
-            yearMonth       // H: 년월 (서버가 자동으로 만든 값!)
+            date, type, amount, category, subCategory, description, creditCard, yearMonth
         ];
 
-        // 4. 구글 시트에 기록하라고 명령하기
         await sheets.spreadsheets.values.append({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: '시트1!A:H', // 주의: 구글 시트 하단의 탭 이름이 '시트1'이어야 합니다. (영문이면 Sheet1)
+            range: '시트1!A:H',
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values: [newRow],

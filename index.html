@@ -3,63 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- ★ [추가됨] 스마트폰 홈 화면 추가 시 주소창을 숨기고 앱처럼 보이게 하는 태그 ★ -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>나만의 가계부</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 15px; background-color: #f4f7f6; margin: 0; }
-        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
-        h2 { text-align: center; color: #333; margin-top: 0; }
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f7f6; margin: 0; padding-bottom: 70px; } /* 하단 메뉴 공간 확보 */
+        .header { background: #4CAF50; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; position: sticky; top: 0; z-index: 100; }
+        .container { background: white; padding: 20px; margin: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        
+        /* 탭 화면 숨김/표시 처리 */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
         form { display: flex; flex-direction: column; gap: 12px; }
         label { font-weight: bold; font-size: 14px; color: #555; margin-top: 5px; }
-        
-        input, select, button { padding: 14px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; width: 100%; }
+        input, select, button { padding: 14px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; width: 100%; box-sizing: border-box; }
         input:focus, select:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 5px rgba(76, 175, 80, 0.3); }
+        .submit-btn { background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-top: 20px; font-weight: bold; padding: 16px; }
         
-        button { background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-top: 20px; font-weight: bold; font-size: 18px; padding: 16px; }
-        button:hover { background-color: #45a049; }
-
         .color-expense { color: #e53935; font-weight: bold; }
         .color-income { color: #1e88e5; font-weight: bold; }
         .color-transfer { color: #43a047; font-weight: bold; }
         .color-debt { color: #8e24aa; font-weight: bold; }
+
+        /* 내역조회 리스트 디자인 */
+        .history-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .history-item:last-child { border-bottom: none; }
+        .history-info { display: flex; flex-direction: column; gap: 5px; }
+        .history-date { font-size: 12px; color: #888; }
+        .history-cat { font-size: 14px; font-weight: bold; color: #333; }
+        .history-desc { font-size: 13px; color: #666; }
+        .history-amount { font-size: 16px; font-weight: bold; }
+
+        /* 하단 탭 메뉴 디자인 */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; display: flex; border-top: 1px solid #ddd; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; }
+        .nav-btn { flex: 1; padding: 15px 0; background: none; border: none; border-radius: 0; font-size: 15px; color: #777; font-weight: bold; cursor: pointer; }
+        .nav-btn.active { color: #4CAF50; border-top: 3px solid #4CAF50; background-color: #f9fbf9; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>💰 가계부 입력하기</h2>
-        <form id="ledgerForm">
-            <label>날짜</label>
-            <input type="date" id="date" required>
-            
-            <!-- 실제 파일에 있던 '부채' 항목도 추가했습니다 -->
-            <label>유형</label>
-            <select id="type" onchange="updateTypeColor(); updateCategory();">
-                <option value="지출" class="color-expense">지출</option>
-                <option value="수입" class="color-income">수입</option>
-                <option value="이체" class="color-transfer">이체</option>
-                <option value="부채" class="color-debt">부채</option>
-            </select>
-            
-            <label>카테고리</label>
-            <select id="category" required onchange="updateSubCategory()">
-                <option value="">유형을 먼저 선택하세요</option>
-            </select>
-            
-            <label>서브카테고리</label>
-            <select id="subCategory">
-                <option value="">카테고리를 먼저 선택하세요</option>
-            </select>
-            
-            <label>설명</label>
-            <input type="text" id="description" placeholder="예: 거래처 미팅 커피">
-            
-            <label>신용카드 / 계좌</label>
-            <input type="text" id="creditCard" placeholder="예: 현대카드 / 국민은행">
-            
-            <button type="submit">저장하기</button>
-        </form>
+    <div class="header" id="headerTitle">📝 가계부 입력</div>
+
+    <!-- 1번 화면: 입력 탭 -->
+    <div id="tab-input" class="tab-content active">
+        <div class="container">
+            <form id="ledgerForm">
+                <label>날짜</label>
+                <input type="date" id="date" required>
+                
+                <label>유형</label>
+                <select id="type" onchange="updateTypeColor(); updateCategory();">
+                    <option value="지출" class="color-expense">지출</option>
+                    <option value="수입" class="color-income">수입</option>
+                    <option value="이체" class="color-transfer">이체</option>
+                    <option value="부채" class="color-debt">부채</option>
+                </select>
+                
+                <label>카테고리</label>
+                <select id="category" required onchange="updateSubCategory()">
+                    <option value="">유형을 먼저 선택하세요</option>
+                </select>
+                
+                <label>서브카테고리</label>
+                <select id="subCategory">
+                    <option value="">카테고리를 먼저 선택하세요</option>
+                </select>
+                
+                <label>설명</label>
+                <input type="text" id="description" placeholder="예: 거래처 미팅 커피">
+                
+                <label>신용카드 / 계좌</label>
+                <input type="text" id="creditCard" placeholder="예: 현대카드 / 국민은행">
+                
+                <button type="submit" class="submit-btn">저장하기</button>
+            </form>
+        </div>
     </div>
 
+    <!-- 2번 화면: 내역조회 탭 -->
+    <div id="tab-history" class="tab-content">
+        <div class="container" id="historyList">
+            <!-- 자바스크립트를 통해 데이터가 여기에 표시됩니다 -->
+            <div style="text-align: center; color: #888; padding: 20px;">내역을 불러오는 중입니다...</div>
+        </div>
+    </div>
+
+    <!-- 하단 고정 메뉴 -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" id="nav-input" onclick="switchTab('input')">📝 입력하기</button>
+        <button class="nav-btn" id="nav-history" onclick="switchTab('history')">📜 내역조회</button>
+    </nav>
+
     <script>
+        // -------------------------
+        // 1. 하단 탭 전환 기능
+        // -------------------------
+        function switchTab(tabName) {
+            // 모든 탭 콘텐츠와 버튼 초기화
+            document.getElementById('tab-input').classList.remove('active');
+            document.getElementById('tab-history').classList.remove('active');
+            document.getElementById('nav-input').classList.remove('active');
+            document.getElementById('nav-history').classList.remove('active');
+
+            if(tabName === 'input') {
+                document.getElementById('tab-input').classList.add('active');
+                document.getElementById('nav-input').classList.add('active');
+                document.getElementById('headerTitle').innerText = '📝 가계부 입력';
+            } else if(tabName === 'history') {
+                document.getElementById('tab-history').classList.add('active');
+                document.getElementById('nav-history').classList.add('active');
+                document.getElementById('headerTitle').innerText = '📜 내역조회';
+                loadHistory(); // 내역조회 탭을 누르면 서버에서 데이터를 불러옵니다.
+            }
+        }
+
+        // -------------------------
+        // 2. 가계부 입력 관련 기능 (기존과 동일)
+        // -------------------------
         document.getElementById('date').value = new Date().toISOString().substring(0, 10);
 
         function updateTypeColor() {
@@ -71,7 +133,6 @@
             if(typeSelect.value === '부채') typeSelect.classList.add('color-debt');
         }
 
-        // ★ 대표님의 실제 엑셀 파일(2026_Mbook_Final_V2)에서 100% 동일하게 추출한 카테고리입니다 ★
         const ledgerData = {
             "지출": {
                 "가족": ["기타", "용돈"],
@@ -139,8 +200,12 @@
         updateTypeColor(); 
         updateCategory();
 
+        // 데이터 저장하기
         document.getElementById('ledgerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.innerText = '저장 중...';
+            btn.disabled = true;
 
             const data = {
                 date: document.getElementById('date').value,
@@ -153,7 +218,7 @@
             };
 
             try {
-                const response = await fetch('https://financial-ledger-x6nh.onrender.com/api/ledger', {
+                const response = await fetch('/api/ledger', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -163,14 +228,72 @@
                     alert('구글 시트에 성공적으로 저장되었습니다! 🎉');
                     document.getElementById('amount').value = '';
                     document.getElementById('description').value = '';
+                    // 저장 후 내역조회 탭으로 자동 이동하여 확인시켜주기
+                    switchTab('history');
                 } else {
                     alert('저장에 실패했습니다.');
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('서버와 연결할 수 없습니다.');
+            } finally {
+                btn.innerText = '저장하기';
+                btn.disabled = false;
             }
         });
+
+        // -------------------------
+        // 3. 서버에서 데이터 읽어오기 기능
+        // -------------------------
+        async function loadHistory() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">내역을 불러오는 중입니다...⏳</div>';
+            
+            try {
+                const response = await fetch('/api/ledger');
+                const data = await response.json();
+                
+                if(data.length === 0) {
+                    historyList.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">아직 입력된 내역이 없습니다.</div>';
+                    return;
+                }
+
+                historyList.innerHTML = ''; // 로딩 문구 삭제
+                
+                // 데이터 배열을 순회하며 HTML로 만들어 화면에 붙입니다.
+                data.forEach(row => {
+                    // row[0]=날짜, row[1]=유형, row[2]=금액, row[3]=카테고리, row[4]=서브, row[5]=설명
+                    const date = row[0] || '-';
+                    const type = row[1] || '-';
+                    const amount = row[2] ? Number(row[2].replace(/,/g, '')).toLocaleString() + '원' : '0원';
+                    const category = row[3] || '-';
+                    const subCategory = row[4] || '-';
+                    const desc = row[5] || '';
+
+                    // 유형별 금액 색상 지정
+                    let amountColor = '#333';
+                    if(type === '지출') amountColor = '#e53935';
+                    if(type === '수입') amountColor = '#1e88e5';
+                    if(type === '이체') amountColor = '#43a047';
+                    if(type === '부채') amountColor = '#8e24aa';
+
+                    const itemHtml = `
+                        <div class="history-item">
+                            <div class="history-info">
+                                <span class="history-date">${date} | ${type}</span>
+                                <span class="history-cat">${category} > ${subCategory}</span>
+                                <span class="history-desc">${desc}</span>
+                            </div>
+                            <div class="history-amount" style="color: ${amountColor};">${amount}</div>
+                        </div>
+                    `;
+                    historyList.innerHTML += itemHtml;
+                });
+
+            } catch (error) {
+                historyList.innerHTML = '<div style="text-align: center; color: red; padding: 20px;">데이터를 불러오는데 실패했습니다.</div>';
+            }
+        }
     </script>
 </body>
 </html>
