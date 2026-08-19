@@ -20,6 +20,7 @@
         .color-expense { color: #e53935; font-weight: bold; }
         .color-income { color: #1e88e5; font-weight: bold; }
         .color-transfer { color: #43a047; font-weight: bold; }
+        .color-debt { color: #8e24aa; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -29,15 +30,15 @@
             <label>날짜</label>
             <input type="date" id="date" required>
             
-            <!-- 유형이 바뀔 때 색상과 카테고리 목록이 동시에 업데이트되도록 수정했습니다 -->
+            <!-- 실제 파일에 있던 '부채' 항목도 추가했습니다 -->
             <label>유형</label>
             <select id="type" onchange="updateTypeColor(); updateCategory();">
                 <option value="지출" class="color-expense">지출</option>
                 <option value="수입" class="color-income">수입</option>
                 <option value="이체" class="color-transfer">이체</option>
+                <option value="부채" class="color-debt">부채</option>
             </select>
             
-            <!-- 카테고리가 바뀔 때 서브카테고리 목록이 업데이트됩니다 -->
             <label>카테고리</label>
             <select id="category" required onchange="updateSubCategory()">
                 <option value="">유형을 먼저 선택하세요</option>
@@ -67,34 +68,46 @@
             if(typeSelect.value === '지출') typeSelect.classList.add('color-expense');
             if(typeSelect.value === '수입') typeSelect.classList.add('color-income');
             if(typeSelect.value === '이체') typeSelect.classList.add('color-transfer');
+            if(typeSelect.value === '부채') typeSelect.classList.add('color-debt');
         }
 
-        // ★ 수입, 지출, 이체에 따른 3단 데이터 통합 구성 ★
+        // ★ 대표님의 실제 엑셀 파일(2026_Mbook_Final_V2)에서 100% 동일하게 추출한 카테고리입니다 ★
         const ledgerData = {
             "지출": {
-                "식비": ["식사/회식", "커피/음료", "간식"],
-                "교통/차량": ["주유비", "주차비", "대중교통", "차량유지/수리", "톨게이트비"],
-                "사무실 운영": ["비전프라자 관리비", "사무실 임대료", "통신/인터넷", "사무용품/비품", "기타 운영비"],
-                "광고/홍보": ["네이버 매물 등록비", "탐색플러스 구독료", "블로그/SNS 홍보비", "기타 광고비"],
-                "기타": ["경조사비", "교육/도서", "세금", "기타 지출"]
+                "가족": ["기타", "용돈"],
+                "건강의료": ["병원", "약국"],
+                "개인공공요금": ["핸드폰"],
+                "교통/차량": ["교통비"],
+                "교육": ["도서", "학습"],
+                "보험료": ["DB보험", "프리드LIFE"],
+                "사무실": ["기타", "도메인/호스팅", "마케팅", "비품", "월세", "인터넷 / 전화", "전기요금", "회비"],
+                "사회활동": ["경조사", "기부", "선물", "연회비"],
+                "생활/쇼핑": ["생활용품", "이발/목욕", "일상기타지출"],
+                "세금/공과금": ["4대보험", "부가가치세", "종합소득세", "지방세"],
+                "식비": ["식료품", "외식"],
+                "자동차": ["세차", "주유", "주차"],
+                "정기구독": ["미디어/엔터", "쇼핑/멤버십", "업무용SaaS"],
+                "취미생활": ["취미생활"]
             },
             "수입": {
-                "중개보수": ["아파트 매매", "아파트 전/월세", "상가/사무실", "기타 중개"],
-                "기타 수입": ["이자 수입", "환급금", "기타 수입"]
+                "중개보수": ["중개보수"]
             },
             "이체": {
-                "자금 이동": ["내 계좌간 이체", "카드대금 결제", "저축/투자"]
+                "자산회수": ["중고판매", "환급/기타회수"],
+                "저축/투자": ["IRP", "노란우산", "주택부금"]
+            },
+            "부채": {
+                "부채": ["자금지원(차입)"]
             }
         };
 
-        // 1. 유형(수입/지출/이체)에 맞춰 '카테고리' 목록을 갱신하는 함수
         function updateCategory() {
             const type = document.getElementById('type').value;
             const categorySelect = document.getElementById('category');
             const subCategorySelect = document.getElementById('subCategory');
 
             categorySelect.innerHTML = '<option value="">선택해주세요</option>';
-            subCategorySelect.innerHTML = '<option value="">카테고리를 먼저 선택하세요</option>'; // 서브도 함께 초기화
+            subCategorySelect.innerHTML = '<option value="">카테고리를 먼저 선택하세요</option>'; 
 
             if (ledgerData[type]) {
                 Object.keys(ledgerData[type]).forEach(cat => {
@@ -106,7 +119,6 @@
             }
         }
 
-        // 2. 카테고리에 맞춰 '서브카테고리' 목록을 갱신하는 함수
         function updateSubCategory() {
             const type = document.getElementById('type').value;
             const category = document.getElementById('category').value;
@@ -124,11 +136,9 @@
             }
         }
 
-        // 페이지가 처음 열릴 때 기본값(지출)에 맞춰 색상과 카테고리를 미리 세팅합니다.
         updateTypeColor(); 
         updateCategory();
 
-        // 서버 전송 로직
         document.getElementById('ledgerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -143,7 +153,6 @@
             };
 
             try {
-                // 대표님의 렌더 서버 주소
                 const response = await fetch('https://financial-ledger-x6nh.onrender.com/api/ledger', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
