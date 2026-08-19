@@ -26,22 +26,37 @@
         .color-transfer { color: #43a047; font-weight: bold; }
         .color-debt { color: #8e24aa; font-weight: bold; }
 
-        .history-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .history-item:last-child { border-bottom: none; }
-        .history-info { display: flex; flex-direction: column; gap: 5px; }
+        /* 내역조회 및 통계 디자인 */
+        .summary-box { background: #f9fbf9; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e0e0e0; text-align: center; }
+        .summary-box.stats-box { background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: none; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; }
+        .stat-total { font-size: 18px; font-weight: bold; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
+        
+        .history-item, .stat-item { padding: 12px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .history-item:last-child, .stat-item:last-child { border-bottom: none; }
+        .history-info { display: flex; flex-direction: column; gap: 4px; }
         .history-date { font-size: 12px; color: #888; }
         .history-cat { font-size: 14px; font-weight: bold; color: #333; }
         .history-desc { font-size: 13px; color: #666; }
-        .history-amount { font-size: 16px; font-weight: bold; }
+        .history-amount { font-size: 15px; font-weight: bold; }
 
+        .stat-bar-container { width: 100%; background: #eee; border-radius: 4px; height: 8px; margin-top: 5px; overflow: hidden; }
+        .stat-bar { height: 100%; background: #e53935; width: 0%; }
+
+        .date-filter { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; }
+        .date-filter input { padding: 10px; font-size: 14px; }
+
+        /* 하단 고정 메뉴 (3단) */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; display: flex; border-top: 1px solid #ddd; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; }
-        .nav-btn { flex: 1; padding: 15px 0; background: none; border: none; border-radius: 0; font-size: 15px; color: #777; font-weight: bold; cursor: pointer; }
+        .nav-btn { flex: 1; padding: 12px 0; background: none; border: none; border-radius: 0; font-size: 14px; color: #777; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .nav-btn.active { color: #4CAF50; border-top: 3px solid #4CAF50; background-color: #f9fbf9; }
+        .nav-icon { font-size: 20px; }
     </style>
 </head>
 <body>
     <div class="header" id="headerTitle">📝 가계부 입력</div>
 
+    <!-- 1번 화면: 입력 탭 -->
     <div id="tab-input" class="tab-content active">
         <div class="container">
             <form id="ledgerForm">
@@ -56,9 +71,9 @@
                     <option value="부채" class="color-debt">부채</option>
                 </select>
                 
-                <!-- 빠졌던 금액 입력칸이 돌아왔습니다! -->
+                <!-- 천 단위 콤마 자동 입력을 위해 type을 text로, inputmode를 numeric으로 변경했습니다 -->
                 <label>금액</label>
-                <input type="number" id="amount" placeholder="예: 10000" required>
+                <input type="text" inputmode="numeric" id="amount" placeholder="예: 10,000" oninput="formatComma(this)" required>
                 
                 <label>카테고리</label>
                 <select id="category" required onchange="updateSubCategory()">
@@ -73,45 +88,99 @@
                 <label>설명</label>
                 <input type="text" id="description" placeholder="예: 거래처 미팅 커피">
                 
-                <label>신용카드 / 계좌</label>
-                <input type="text" id="creditCard" placeholder="예: 현대카드 / 국민은행">
+                <!-- 현금/카드 선택 드롭다운으로 변경되었습니다 -->
+                <label>결제 수단</label>
+                <select id="creditCard">
+                    <option value="현금">현금</option>
+                    <option value="카드">카드</option>
+                </select>
                 
                 <button type="submit" class="submit-btn">저장하기</button>
             </form>
         </div>
     </div>
 
+    <!-- 2번 화면: 내역조회 탭 -->
     <div id="tab-history" class="tab-content">
-        <div class="container" id="historyList">
-            <div style="text-align: center; color: #888; padding: 20px;">내역을 불러오는 중입니다...</div>
+        <div class="container" id="historyContainer">
+            <!-- 요약 대시보드 표시 영역 -->
+            <div id="historySummary" class="summary-box">요약 정보를 불러오는 중...</div>
+            <!-- 리스트 표시 영역 -->
+            <div id="historyList"></div>
         </div>
     </div>
 
+    <!-- 3번 화면: 통계 탭 -->
+    <div id="tab-stats" class="tab-content">
+        <div class="container">
+            <label style="font-size: 13px; color:#888;">조회 기간 설정</label>
+            <div class="date-filter">
+                <input type="date" id="startDate">
+                <span style="color:#888;">~</span>
+                <input type="date" id="endDate">
+            </div>
+            <button onclick="renderStats()" class="submit-btn" style="margin-top: 0; padding: 10px; font-size: 15px;">조회하기</button>
+        </div>
+
+        <div class="container" id="statsContainer">
+            <div style="text-align: center; color: #888; padding: 20px;">기간을 설정하고 조회해주세요.</div>
+        </div>
+    </div>
+
+    <!-- 하단 고정 메뉴 (3단으로 확장) -->
     <nav class="bottom-nav">
-        <button class="nav-btn active" id="nav-input" onclick="switchTab('input')">📝 입력하기</button>
-        <button class="nav-btn" id="nav-history" onclick="switchTab('history')">📜 내역조회</button>
+        <button class="nav-btn active" id="nav-input" onclick="switchTab('input')">
+            <span class="nav-icon">📝</span>입력
+        </button>
+        <button class="nav-btn" id="nav-history" onclick="switchTab('history')">
+            <span class="nav-icon">📜</span>내역
+        </button>
+        <button class="nav-btn" id="nav-stats" onclick="switchTab('stats')">
+            <span class="nav-icon">📊</span>통계
+        </button>
     </nav>
 
     <script>
+        // 전역 변수로 데이터 보관 (서버 호출 최소화)
+        let globalData = [];
+
+        // 화면 탭 전환 기능
         function switchTab(tabName) {
-            document.getElementById('tab-input').classList.remove('active');
-            document.getElementById('tab-history').classList.remove('active');
-            document.getElementById('nav-input').classList.remove('active');
-            document.getElementById('nav-history').classList.remove('active');
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`nav-${tabName}`).classList.add('active');
 
             if(tabName === 'input') {
-                document.getElementById('tab-input').classList.add('active');
-                document.getElementById('nav-input').classList.add('active');
                 document.getElementById('headerTitle').innerText = '📝 가계부 입력';
             } else if(tabName === 'history') {
-                document.getElementById('tab-history').classList.add('active');
-                document.getElementById('nav-history').classList.add('active');
-                document.getElementById('headerTitle').innerText = '📜 내역조회';
-                loadHistory(); 
+                document.getElementById('headerTitle').innerText = '📜 전체 내역 조회';
+                fetchAndRenderData('history');
+            } else if(tabName === 'stats') {
+                document.getElementById('headerTitle').innerText = '📊 재무 통계 분석';
+                fetchAndRenderData('stats');
             }
         }
 
-        document.getElementById('date').value = new Date().toISOString().substring(0, 10);
+        // --- 1. 입력 화면 관련 기능 ---
+        // 날짜 및 통계 기간 기본값 세팅 (이번 달 1일 ~ 오늘)
+        const today = new Date();
+        document.getElementById('date').value = today.toISOString().substring(0, 10);
+        
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 2); // 한국 시간 보정용 +1일
+        document.getElementById('startDate').value = firstDay.toISOString().substring(0, 10);
+        document.getElementById('endDate').value = today.toISOString().substring(0, 10);
+
+        // 천 단위 콤마 자동 입력 기능
+        function formatComma(input) {
+            let val = input.value.replace(/[^0-9]/g, ''); // 숫자 이외의 문자 제거
+            if(val.length > 0) {
+                input.value = Number(val).toLocaleString('ko-KR');
+            } else {
+                input.value = '';
+            }
+        }
 
         function updateTypeColor() {
             const typeSelect = document.getElementById('type');
@@ -139,16 +208,9 @@
                 "정기구독": ["미디어/엔터", "쇼핑/멤버십", "업무용SaaS"],
                 "취미생활": ["취미생활"]
             },
-            "수입": {
-                "중개보수": ["중개보수"]
-            },
-            "이체": {
-                "자산회수": ["중고판매", "환급/기타회수"],
-                "저축/투자": ["IRP", "노란우산", "주택부금"]
-            },
-            "부채": {
-                "부채": ["자금지원(차입)"]
-            }
+            "수입": { "중개보수": ["중개보수"] },
+            "이체": { "자산회수": ["중고판매", "환급/기타회수"], "저축/투자": ["IRP", "노란우산", "주택부금"] },
+            "부채": { "부채": ["자금지원(차입)"] }
         };
 
         function updateCategory() {
@@ -162,8 +224,7 @@
             if (ledgerData[type]) {
                 Object.keys(ledgerData[type]).forEach(cat => {
                     const option = document.createElement('option');
-                    option.value = cat;
-                    option.textContent = cat;
+                    option.value = cat; option.textContent = cat;
                     categorySelect.appendChild(option);
                 });
             }
@@ -179,26 +240,25 @@
             if (ledgerData[type] && ledgerData[type][category]) {
                 ledgerData[type][category].forEach(sub => {
                     const option = document.createElement('option');
-                    option.value = sub;
-                    option.textContent = sub;
+                    option.value = sub; option.textContent = sub;
                     subCategorySelect.appendChild(option);
                 });
             }
         }
 
-        updateTypeColor(); 
-        updateCategory();
+        updateTypeColor(); updateCategory();
 
+        // 데이터 저장하기
         document.getElementById('ledgerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
-            btn.innerText = '저장 중...';
-            btn.disabled = true;
+            btn.innerText = '저장 중...'; btn.disabled = true;
 
             const data = {
                 date: document.getElementById('date').value,
                 type: document.getElementById('type').value,
-                amount: document.getElementById('amount').value,
+                // 시트에 보낼 때는 콤마를 제거한 순수 숫자로 전송합니다.
+                amount: document.getElementById('amount').value.replace(/,/g, ''),
                 category: document.getElementById('category').value,
                 subCategory: document.getElementById('subCategory').value,
                 description: document.getElementById('description').value,
@@ -206,7 +266,6 @@
             };
 
             try {
-                // 기존 /api/ledger 방식 유지 (Render 서버 환경에서 작동)
                 const response = await fetch('/api/ledger', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -214,67 +273,191 @@
                 });
 
                 if (response.ok) {
-                    alert('구글 시트에 성공적으로 저장되었습니다! 🎉');
+                    alert('성공적으로 저장되었습니다! 🎉');
                     document.getElementById('amount').value = '';
                     document.getElementById('description').value = '';
+                    // 데이터 갱신을 위해 전역 변수 초기화 후 내역 탭으로 이동
+                    globalData = []; 
                     switchTab('history');
                 } else {
                     alert('저장에 실패했습니다.');
                 }
             } catch (error) {
-                console.error('Error:', error);
                 alert('서버와 연결할 수 없습니다.');
             } finally {
-                btn.innerText = '저장하기';
-                btn.disabled = false;
+                btn.innerText = '저장하기'; btn.disabled = false;
             }
         });
 
-        async function loadHistory() {
-            const historyList = document.getElementById('historyList');
-            historyList.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">내역을 불러오는 중입니다...⏳</div>';
-            
-            try {
-                const response = await fetch('/api/ledger');
-                const data = await response.json();
-                
-                if(data.length === 0) {
-                    historyList.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">아직 입력된 내역이 없습니다.</div>';
+        // --- 2. 데이터 불러오기 및 통계 공통 로직 ---
+        async function fetchAndRenderData(targetTab) {
+            // 이미 데이터가 있다면 다시 부르지 않고 화면만 그림 (속도 최적화)
+            if(globalData.length === 0) {
+                try {
+                    const response = await fetch('/api/ledger');
+                    globalData = await response.json();
+                } catch (error) {
+                    alert('데이터를 불러오는데 실패했습니다.');
                     return;
                 }
-
-                historyList.innerHTML = ''; 
-                
-                data.forEach(row => {
-                    const date = row[0] || '-';
-                    const type = row[1] || '-';
-                    const amount = row[2] ? Number(row[2].replace(/,/g, '')).toLocaleString() + '원' : '0원';
-                    const category = row[3] || '-';
-                    const subCategory = row[4] || '-';
-                    const desc = row[5] || '';
-
-                    let amountColor = '#333';
-                    if(type === '지출') amountColor = '#e53935';
-                    if(type === '수입') amountColor = '#1e88e5';
-                    if(type === '이체') amountColor = '#43a047';
-                    if(type === '부채') amountColor = '#8e24aa';
-
-                    const itemHtml = `
-                        <div class="history-item">
-                            <div class="history-info">
-                                <span class="history-date">${date} | ${type}</span>
-                                <span class="history-cat">${category} > ${subCategory}</span>
-                                <span class="history-desc">${desc}</span>
-                            </div>
-                            <div class="history-amount" style="color: ${amountColor};">${amount}</div>
-                        </div>
-                    `;
-                    historyList.innerHTML += itemHtml;
-                });
-
-            } catch (error) {
-                historyList.innerHTML = '<div style="text-align: center; color: red; padding: 20px;">데이터를 불러오는데 실패했습니다.</div>';
             }
+
+            if(targetTab === 'history') renderHistory();
+            if(targetTab === 'stats') renderStats();
+        }
+
+        // 내역 화면 그리기
+        function renderHistory() {
+            const historyList = document.getElementById('historyList');
+            const summaryBox = document.getElementById('historySummary');
+            
+            if(globalData.length === 0) {
+                summaryBox.style.display = 'none';
+                historyList.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">아직 입력된 내역이 없습니다.</div>';
+                return;
+            }
+
+            summaryBox.style.display = 'block';
+            historyList.innerHTML = ''; 
+            
+            let totalIncome = 0; let totalExpense = 0;
+
+            globalData.forEach(row => {
+                const date = row[0] || '-';
+                const type = row[1] || '-';
+                const rawAmount = Number((row[2] || '0').replace(/,/g, ''));
+                const amount = rawAmount.toLocaleString() + '원';
+                const category = row[3] || '-';
+                const subCategory = row[4] || '-';
+                const desc = row[5] || '';
+                const payMethod = row[6] || '';
+
+                // 전체 내역 누적 (간단 요약용)
+                if(type === '수입') totalIncome += rawAmount;
+                if(type === '지출') totalExpense += rawAmount;
+
+                let amountColor = '#333';
+                if(type === '지출') amountColor = '#e53935';
+                if(type === '수입') amountColor = '#1e88e5';
+                if(type === '이체') amountColor = '#43a047';
+                if(type === '부채') amountColor = '#8e24aa';
+
+                const itemHtml = `
+                    <div class="history-item">
+                        <div class="history-info">
+                            <span class="history-date">${date} | ${payMethod}</span>
+                            <span class="history-cat">${type} > ${category}</span>
+                            <span class="history-desc">${subCategory} ${desc ? '- ' + desc : ''}</span>
+                        </div>
+                        <div class="history-amount" style="color: ${amountColor};">${amount}</div>
+                    </div>
+                `;
+                historyList.innerHTML += itemHtml;
+            });
+
+            const netProfit = totalIncome - totalExpense;
+            summaryBox.innerHTML = `
+                <div style="font-size:13px; color:#888; margin-bottom:5px;">전체 누적 요약</div>
+                <div class="stat-row"><span class="color-income">총 수입</span> <span>${totalIncome.toLocaleString()}원</span></div>
+                <div class="stat-row"><span class="color-expense">총 지출</span> <span>${totalExpense.toLocaleString()}원</span></div>
+                <div class="stat-row stat-total"><span>영업 순수익</span> <span style="color:${netProfit >= 0 ? '#1e88e5' : '#e53935'}">${netProfit.toLocaleString()}원</span></div>
+            `;
+        }
+
+        // 통계 화면 그리기
+        function renderStats() {
+            const container = document.getElementById('statsContainer');
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            if(!start || !end) {
+                container.innerHTML = '<div style="text-align:center; color:#888;">기간을 선택해주세요.</div>';
+                return;
+            }
+
+            // 날짜 범위 필터링
+            const filteredData = globalData.filter(row => {
+                const rowDate = row[0];
+                return rowDate >= start && rowDate <= end;
+            });
+
+            if(filteredData.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#888; padding: 20px;">해당 기간에 데이터가 없습니다.</div>';
+                return;
+            }
+
+            let income = 0; let expense = 0;
+            let catStats = {}; let subCatStats = {};
+
+            filteredData.forEach(row => {
+                const type = row[1];
+                const amount = Number((row[2] || '0').replace(/,/g, ''));
+                const cat = row[3];
+                const subCat = row[4];
+
+                if(type === '수입') income += amount;
+                if(type === '지출') {
+                    expense += amount;
+                    // 대분류 통계 누적
+                    catStats[cat] = (catStats[cat] || 0) + amount;
+                    // 소분류 통계 누적
+                    const subKey = `${cat} > ${subCat}`;
+                    subCatStats[subKey] = (subCatStats[subKey] || 0) + amount;
+                }
+            });
+
+            const net = income - expense;
+
+            // 정렬 처리
+            const sortedCats = Object.entries(catStats).sort((a, b) => b[1] - a[1]);
+            const sortedSubCats = Object.entries(subCatStats).sort((a, b) => b[1] - a[1]);
+
+            let html = `
+                <div class="summary-box stats-box">
+                    <h3 style="margin-top:0; color:#333;">조회 기간 요약</h3>
+                    <div class="stat-row"><span class="color-income">수입 합계</span> <span>${income.toLocaleString()}원</span></div>
+                    <div class="stat-row"><span class="color-expense">지출 합계</span> <span>${expense.toLocaleString()}원</span></div>
+                    <div class="stat-row stat-total"><span>영업 순수익</span> <span style="color:${net >= 0 ? '#1e88e5' : '#e53935'}">${net.toLocaleString()}원</span></div>
+                </div>
+
+                <h3 style="margin-bottom:10px; font-size:16px;">📊 카테고리별 지출</h3>
+                <div class="summary-box stats-box" style="padding:10px;">
+            `;
+
+            if(sortedCats.length === 0) html += `<div style="text-align:center; color:#888;">지출 내역이 없습니다.</div>`;
+
+            sortedCats.forEach(([cat, amt]) => {
+                const percent = ((amt / expense) * 100).toFixed(1);
+                html += `
+                    <div class="stat-item" style="flex-direction:column; align-items:flex-start;">
+                        <div style="width:100%; display:flex; justify-content:space-between; font-size:14px;">
+                            <span>${cat} <span style="color:#888; font-size:12px;">(${percent}%)</span></span>
+                            <span style="font-weight:bold;">${amt.toLocaleString()}원</span>
+                        </div>
+                        <div class="stat-bar-container"><div class="stat-bar" style="width:${percent}%"></div></div>
+                    </div>
+                `;
+            });
+
+            html += `</div>
+                <h3 style="margin-bottom:10px; font-size:16px;">📈 세부 항목별 지출 (Top)</h3>
+                <div class="summary-box stats-box" style="padding:10px;">
+            `;
+
+            if(sortedSubCats.length === 0) html += `<div style="text-align:center; color:#888;">지출 내역이 없습니다.</div>`;
+
+            // 세부 항목은 너무 많을 수 있으니 상위 항목들만 보여주거나 전부 스크롤로 보여줍니다. (여기서는 전부 표시)
+            sortedSubCats.forEach(([subKey, amt]) => {
+                html += `
+                    <div class="stat-item" style="font-size:13px;">
+                        <span style="color:#555;">${subKey}</span>
+                        <span style="font-weight:bold; color:#e53935;">${amt.toLocaleString()}원</span>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
         }
     </script>
 </body>
